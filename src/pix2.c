@@ -1547,12 +1547,20 @@ l_uint32  *datas, *lines;
     if (d != 8 && d != 16 && d != 32)
         return ERROR_INT("depth must be 8, 16 or 32 bpp", __func__, 1);
 
-        /* Clamp border values to image dimensions to prevent
-         * negative index calculations (heap buffer underflow).
-         * When bot > h or right > w, bstart/rstart would go negative. */
-    if (top > h) top = h;
-    if (bot > h) bot = h;
-    if (left > w) left = w;
+        /* Clamp border values to [0, dim] to prevent OOB indexing.
+         * Upper: bot > h or right > w makes bstart/rstart negative,
+         *        so the inner loops read before the buffer (the case
+         *        the existing clamp addresses).
+         * Lower: a negative top starts 'for (i = top; ...)' with i < 0,
+         *        same underflow; negative bot/right symmetrically
+         *        inflate bstart/rstart past h/w and walk off the end. */
+    if (top   < 0) top   = 0;
+    if (bot   < 0) bot   = 0;
+    if (left  < 0) left  = 0;
+    if (right < 0) right = 0;
+    if (top   > h) top   = h;
+    if (bot   > h) bot   = h;
+    if (left  > w) left  = w;
     if (right > w) right = w;
 
     datas = pixGetData(pixs);
